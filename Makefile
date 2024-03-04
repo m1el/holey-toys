@@ -1,6 +1,6 @@
-CC ?= gcc
-CFLAGS_EXTRA ?= 
-CFLAGS ?= -Wall -Wextra -Wpedantic -std=c17 -O3
+CC = gcc
+CFLAGS_EXTRA = 
+CFLAGS = -Wall -Wextra -Wpedantic -std=c17 -O3
 
 .PHONY: clean
 
