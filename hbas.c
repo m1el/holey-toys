@@ -821,9 +821,9 @@ AsmError assemble(InstHt ht, char *input, size_t len, ByteVec *out, EInfo *einfo
 }
 
 int main(int argc, char **argv) {
-    int binout = 0;
-    if (argc >= 2 && strcmp(argv[1], "--bin") == 0) {
-        binout = 1;
+    int hex_out = 0;
+    if (argc >= 2 && strcmp(argv[1], "--hex") == 0) {
+        hex_out = 1;
     }
 
     int err = 0;
@@ -854,10 +854,10 @@ int main(int argc, char **argv) {
         fprintf(stderr, "\n");
         goto done;
     }
-    if (binout) {
-        fwrite(out.buf, 1, out.len, stdout);
-    } else {
+    if (hex_out) {
         hd(out.buf, out.len);
+    } else {
+        fwrite(out.buf, 1, out.len, stdout);
     }
 
     done:

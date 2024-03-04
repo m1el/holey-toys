@@ -8,7 +8,7 @@ hbas: hbas.c
 	${CC} ${CFLAGS} ${CFLAGS_EXTRA} hbas.c -o hbas
 
 example: hbas example.S
-	./hbas --bin < example.S > example
+	./hbas < example.S > example
 	xxd example
 
 clean:
