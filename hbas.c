@@ -321,6 +321,7 @@ typedef enum AsmError_e {
     ErrTrailingLine,
     ErrNeedDirectiveAfterDot,
     ErrDirectiveNotImplemented,
+    ErrUnexpectedToken,
 } AsmError;
 char *ERRORS[] = {
     "Success",
@@ -340,6 +341,7 @@ char *ERRORS[] = {
     "Encountered trailing identifier after instruction",
     "Expected directive after dot",
     "Directive is not implemented",
+    "Unexpected token",
 };
 
 typedef struct ByteVec_s {
@@ -819,6 +821,8 @@ AsmError assemble(InstHt ht, char *input, size_t len, ByteVec *out, EInfo *einfo
             }
             continue;
         }
+        err = ErrUnexpectedToken;
+        goto end;
     }
 
     for (size_t ii = 0; ii < holes.len; ii += 1) {
