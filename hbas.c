@@ -384,7 +384,9 @@ int slurp(FILE *fd, ByteVec *out) {
         rv.len += bread;
     }
     *out = rv;
-    err = err ? err : ferror(fd);
+    if (err == 0) {
+        err = ferror(fd);
+    }
     return err;
 }
 
