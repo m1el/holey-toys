@@ -12,7 +12,7 @@ example: hbas example.S
 	xxd example
 
 clean:
-	rm example hbas
+	rm -f example hbas
 
 all:
 	hbas
