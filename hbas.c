@@ -23,7 +23,6 @@ SOFTWARE.
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <errno.h>
 
 void hd(char *data, size_t len) {
     for (size_t ii = 0; ii < len; ii += 1) {
@@ -304,23 +303,62 @@ size_t inst_lookup(InstHt ht, const char *s, size_t len) {
     return INVALID;
 }
 
+typedef enum AsmError_e {
+    ErrOk = 0,
+    ErrBadRegister,
+    ErrImmediateOverflow,
+    ErrInvalidToken,
+    ErrBadArgumentMeta,
+    ErrNeedCommaAfterArgument,
+    ErrLabelImmediate,
+    ErrNumberImmediate,
+    ErrBadNumOverflow,
+    ErrBadNumDigit,
+    ErrBadNumNoDigit,
+    ErrLabelAfterLabel,
+    ErrOutOfMemory,
+    ErrDuplicateLabel,
+    ErrTrailingLine,
+    ErrNeedDirectiveAfterDot,
+    ErrDirectiveNotImplemented,
+} AsmError;
+char *ERRORS[] = {
+    "Success",
+    "Bad register name",
+    "Immediate integer OR relative offset overflow",
+    "Invalid token",
+    "Bad argument char? (blame developer of this program)",
+    "Expected comma after the argument, got something else",
+    "Label immediate needs label or number",
+    "Immediate needs to be a number",
+    "Bad number: u64 overflow",
+    "Bad number: encountered bad gidit",
+    "Bad number: no digits presented after the suffix",
+    "Encountered label after label",
+    "Out of Memory",
+    "Duplicate label",
+    "Encountered trailing identifier after instruction",
+    "Expected directive after dot",
+    "Directive is not implemented",
+};
+
 typedef struct ByteVec_s {
     char *buf;
     size_t cap;
     size_t len;
 } ByteVec;
 
-int ensure_push(ByteVec *vec, size_t el_size, size_t extra) {
+AsmError ensure_push(ByteVec *vec, size_t el_size, size_t extra) {
     while (vec->len + extra > vec->cap) {
         vec->cap *= 2;
         // multiply overflow
         if ((~(size_t)0) / el_size < vec->cap) {
-            return ENOMEM;
+            return ErrOutOfMemory;
         }
         vec->buf = realloc(vec->buf, el_size * vec->cap);
         if (vec->buf == NULL) {
             vec->cap = 0;
-            return ENOMEM;
+            return ErrOutOfMemory;
         }
     }
     return 0;
@@ -334,12 +372,12 @@ int slurp(FILE *fd, ByteVec *out) {
     int err = 0;
     if (rv.buf == NULL) {
         rv.cap = 0;
-        err = ENOMEM;
+        err = ErrOutOfMemory;
         bread = 0;
     }
     while (bread > 0) {
         if (ensure_push(&rv, 1, 1) != 0) {
-            err = ENOMEM;
+            err = ErrOutOfMemory;
             break;
         }
         bread = fread(&rv.buf[rv.len], 1, rv.cap - rv.len, fd);
@@ -369,42 +407,6 @@ typedef struct Token_s {
     size_t len;
     uint64_t num;
 } Token;
-typedef enum AsmError_e {
-    ErrOk = 0,
-    ErrBadRegister,
-    ErrImmediateOverflow,
-    ErrInvalidToken,
-    ErrBadArgumentMeta,
-    ErrNeedCommaAfterArgument,
-    ErrLabelImmediate,
-    ErrNumberImmediate,
-    ErrBadNumOverflow,
-    ErrBadNumDigit,
-    ErrBadNumNoDigit,
-    ErrLabelAfterLabel,
-    ErrDuplicateLabel,
-    ErrTrailingLine,
-    ErrNeedDirectiveAfterDot,
-    ErrDirectiveNotImplemented,
-} AsmError;
-char *ERRORS[] = {
-    "Success",
-    "Bad register name",
-    "Immediate integer OR relative offset overflow",
-    "Invalid token",
-    "Bad argument char? (blame developer of this program)",
-    "Expected comma after the argument, got something else",
-    "Label immediate needs label or number",
-    "Immediate needs to be a number",
-    "Bad number: u64 overflow",
-    "Bad number: encountered bad gidit",
-    "Bad number: no digits presented after the suffix",
-    "Encountered label after label",
-    "Duplicate label",
-    "Encountered trailing identifier after instruction",
-    "Expected directive after dot",
-    "Directive is not implemented",
-};
 
 Token token_ident(char *input, size_t len, size_t pos) {
     size_t start = pos;
@@ -637,7 +639,7 @@ AsmError assemble_instr(
         size += meta.size;
     }
     if (ensure_push(rv, 1, size) != 0) {
-        return ENOMEM;
+        return ErrOutOfMemory;
     }
     rv->buf[rv->len] = inst->opcode;
     rv->len += 1;
@@ -674,7 +676,7 @@ AsmError assemble_instr(
                     size_t idx = label_lookup(labels, &input[tok->start], tok->len);
                     if (idx == INVALID) {
                         if (ensure_push((ByteVec*)holes, 1, sizeof(Hole)) != 0) {
-                            return ENOMEM;
+                            return ErrOutOfMemory;
                         }
                         holes->buf[holes->len] = (Hole) {
                             .location = rv->len,
@@ -783,7 +785,7 @@ AsmError assemble(InstHt ht, char *input, size_t len, ByteVec *out, EInfo *einfo
                 }
                 line_state = 1;
                 if (ensure_push((ByteVec*)&labels, sizeof(Label), 1) != 0) {
-                    err = ENOMEM;
+                    err = ErrOutOfMemory;
                     goto end;
                 }
                 size_t idx = label_lookup(&labels, &input[tok.start], tok.len);
@@ -860,7 +862,7 @@ int main(int argc, char **argv) {
     }
     ht = build_lookup();
     if (ht == NULL) {
-        err = ENOMEM;
+        err = ErrOutOfMemory;
         fprintf(stderr, "failed to init hash table: %d\n", err);
         goto done;
     }

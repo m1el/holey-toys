@@ -4,7 +4,7 @@
 ; .origin 0x1000
 ; .align 0x100
 ; .db "hello"
-; .stuct
+; .struct
 start:
     jmp end
     un
