@@ -658,13 +658,9 @@ AsmError assemble_instr(
         ArgMeta meta = arg_meta(chr);
         uint64_t is_negative = 0;
         *tok = token(input, len, tok->start + tok->len);
-        while (!is_negative) {
-            if (tok->kind == TokNeg) {
-                *tok = token(input, len, tok->start + tok->len);
-                is_negative = ~(uint64_t)0;
-            } else {
-                break;
-            }
+        if (tok->kind == TokNeg) {
+            *tok = token(input, len, tok->start + tok->len);
+            is_negative = ~(uint64_t)0;
         }
         if (chr == 'R') {
             int reg = parse_register(&input[tok->start], tok->len);
@@ -709,7 +705,11 @@ AsmError assemble_instr(
             }
             // num_to_write = num_to_write ^ is_negative - is_negative;
             if (is_negative) {
-                num_to_write = (uint64_t)(-(int64_t)num_to_write);
+                int64_t tmp = (int64_t)num_to_write;
+                if (tmp < 0) {
+                    return ErrBadNumOverflow;
+                }
+                num_to_write = (uint64_t)(-tmp);
             }
             AsmError err = push_int_le(
                 &rv->buf[rv->len], num_to_write, meta.size, meta.sign
