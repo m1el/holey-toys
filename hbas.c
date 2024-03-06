@@ -878,10 +878,9 @@ int main(int argc, char **argv) {
     err = assemble(ht, input.buf, input.len, &out, &einfo);
     if (err != 0) {
         size_t column = einfo.token.start - einfo.line_start + 1;
-        fprintf(stderr, "failed to assemble, %s, line=%zu, col=%zu token=",
-            ERRORS[err], einfo.line, column);
-        fwrite(&input.buf[einfo.token.start], 1, einfo.token.len, stderr);
-        fprintf(stderr, "\n");
+        fprintf(stderr, "failed to assemble, %s, line=%zu, col=%zu token=%.*s\n",
+            ERRORS[err], einfo.line, column,
+            (int)einfo.token.len, &input.buf[einfo.token.start]);
         goto done;
     }
     if (hex_out) {
