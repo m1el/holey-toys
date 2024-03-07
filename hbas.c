@@ -23,6 +23,7 @@ SOFTWARE.
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdint.h>
 
 void hd(char *data, size_t len) {
     for (size_t ii = 0; ii < len; ii += 1) {
