@@ -26,6 +26,7 @@ SOFTWARE.
 #include <stdint.h>
 
 #include "op.h"
+#include "error.h"
 #include "instructions.c"
 #include "hash.c"
 
@@ -83,48 +84,6 @@ ArgMeta arg_meta(char arg)
     }
     return ARGS[NARGS - 1];
 }
-
-typedef enum AsmError_e
-{
-    ErrOk = 0,
-    ErrBadRegister,
-    ErrImmediateOverflow,
-    ErrInvalidToken,
-    ErrBadArgumentMeta,
-    ErrNeedCommaAfterArgument,
-    ErrLabelImmediate,
-    ErrNumberImmediate,
-    ErrBadNumOverflow,
-    ErrBadNumDigit,
-    ErrBadNumNoDigit,
-    ErrLabelAfterLabel,
-    ErrOutOfMemory,
-    ErrDuplicateLabel,
-    ErrTrailingLine,
-    ErrNeedDirectiveAfterDot,
-    ErrDirectiveNotImplemented,
-    ErrUnexpectedToken,
-} AsmError;
-char *ERRORS[] = {
-    "Success",
-    "Bad register name",
-    "Immediate integer OR relative offset overflow",
-    "Invalid token",
-    "Bad argument char? (blame developer of this program)",
-    "Expected comma after the argument, got something else",
-    "Label immediate needs label or number",
-    "Immediate needs to be a number",
-    "Bad number: u64 overflow",
-    "Bad number: encountered bad gidit",
-    "Bad number: no digits presented after the suffix",
-    "Encountered label after label",
-    "Out of Memory",
-    "Duplicate label",
-    "Encountered trailing identifier after instruction",
-    "Expected directive after dot",
-    "Directive is not implemented",
-    "Unexpected token",
-};
 
 typedef struct ByteVec_s
 {
