@@ -25,6 +25,7 @@ SOFTWARE.
 #include <string.h>
 #include <stdint.h>
 
+#include "args.c"
 #include "op.h"
 #include "error.h"
 #include "instructions.c"
@@ -32,6 +33,7 @@ SOFTWARE.
 #include "register.c"
 #include "token.c"
 #include "einfo.h"
+#include "bytevec.c"
 
 void hd(char *data, size_t len)
 {
@@ -44,83 +46,6 @@ void hd(char *data, size_t len)
         printf("%02x", (uint8_t)data[ii]);
     }
     printf("\n");
-}
-
-typedef struct ArgMeta_s
-{
-    char chr;
-    uint8_t size;
-    // This is a bitset of acceptable overflow states,
-    // where accept signed = 1, accept unsigned = 2.
-    // 1 -> signed, 2 -> unsigned, 3 -> whatever
-    uint8_t sign;
-    uint8_t rel;
-} ArgMeta;
-const ArgMeta ARGS[] = {
-    {'R', 1, 2, 0},
-    {'1', 1, 3, 0},
-    {'b', 1, 1, 0},
-    {'B', 1, 2, 0},
-    {'2', 2, 3, 0},
-    {'o', 2, 1, 1},
-    {'h', 2, 1, 0},
-    {'H', 2, 2, 0},
-    {'4', 4, 3, 0},
-    {'w', 4, 1, 0},
-    {'O', 4, 1, 1},
-    {'W', 4, 2, 0},
-    {'8', 8, 3, 0},
-    {'d', 8, 1, 0},
-    {'D', 8, 2, 0},
-    {0},
-};
-const size_t NARGS = sizeof(ARGS) / sizeof(ARGS[0]);
-ArgMeta arg_meta(char arg)
-{
-    for (size_t ii = 0; ii < NARGS; ii += 1)
-    {
-        ArgMeta meta = ARGS[ii];
-        if (meta.chr == arg)
-        {
-            return meta;
-        }
-    }
-    return ARGS[NARGS - 1];
-}
-
-typedef struct ByteVec_s
-{
-    char *buf;
-    size_t cap;
-    size_t len;
-} ByteVec;
-
-AsmError ensure_push(ByteVec *vec, size_t el_size, size_t extra)
-{
-    if (vec->len + extra < vec->len)
-    {
-        return ErrOutOfMemory;
-    }
-    while (vec->len + extra > vec->cap)
-    {
-        if ((~(size_t)0) / 2 < vec->cap)
-        {
-            return ErrOutOfMemory;
-        }
-        vec->cap *= 2;
-        // multiply overflow
-        if ((~(size_t)0) / el_size < vec->cap)
-        {
-            return ErrOutOfMemory;
-        }
-        vec->buf = realloc(vec->buf, el_size * vec->cap);
-        if (vec->buf == NULL)
-        {
-            vec->cap = 0;
-            return ErrOutOfMemory;
-        }
-    }
-    return 0;
 }
 
 #define MIN_SIZE 4096

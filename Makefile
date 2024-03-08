@@ -5,7 +5,7 @@ CFLAGS = -Wall -Wextra -Wpedantic -std=c17 -O3
 .PHONY: clean
 
 hbas: src/hbas.c
-	${CC} ${CFLAGS} ${CFLAGS_EXTRA} src/hbas.c -o hbas
+	${CC} ${CFLAGS} ${CFLAGS_EXTRA} src/hbas.c -o build/hbas
 
 example: hbas example.S
 	./hbas < example.S > example

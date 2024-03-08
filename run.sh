@@ -1,2 +1,2 @@
 make CC=clang
-./hbas < example.S > example.hbf
+./build/hbas < examples/example.S > build/example.hbf
