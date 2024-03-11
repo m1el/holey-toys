@@ -110,16 +110,44 @@ size_t label_lookup(LabelVec *labels, char *name, size_t len) {
   return INVALID;
 }
 
-// safety: assumes the buffer has enough place for specified integer size
+// safety: assumes the buffer has enough place for specified integer size.
+// `sign` is a bitset, where bit `1` indicates that value accepts a signed int,
+// and bit `2` indicates that value accepts an unsigned int.
 AsmError push_int_le(char *buf, uint64_t val, size_t size, uint8_t sign) {
-  int valid_uint = val >> (size * 8) == 0;
+  // Unsigned integers must have all upper bits set to zero. To check this,
+  // we shift the value right by the integer size and verify it equals zero.
+  int valid_uint = (val >> (size * 8)) == 0;
+
+  // For signed integers, the sign-extended high bits must match the sign bit.
+  // By shifting right by one less than the total bit size (size * 8 - 1),
+  // we isolate the sign bit and any sign-extended bits. For a value fitting
+  // in the signed range, this operation results in either 0 (for non-negative
+  // values) or -1 (for negative values due to sign extension).
   int64_t int_shifted = ((int64_t)val) >> (size * 8 - 1);
-  int valid_int = int_shifted == 0 || (~int_shifted) == 0;
-  // Note: this assumes the format for `sign` is a bitset.
+
+  // To unify the check for both positive and negative cases, we adjust
+  // non-zero values (-1) by incrementing by 1.  This turns -1 into 0,
+  // enabling a single check for 0 to validate both cases.  This adjustment
+  // simplifies the validation logic, allowing us to use a single condition to
+  // check for proper sign extension or zero extension in the original value.
+  int_shifted += int_shifted != 0;
+
+  // A valid signed integer will have `int_shifted` equal to 0
+  // after adjustment, indicating proper sign extension. 
+  int valid_int = int_shifted == 0;
+
+  // Validity bitmask to represents whether the value
+  // fits as signed, unsigned, or both.
   int validity = valid_int | (valid_uint << 1);
+
+  // If the value's validity doesn't match the `sign` requirements,
+  // we report an overflow.
   if ((validity & sign) == 0) {
     return ErrImmediateOverflow;
   }
+
+  // Write out the bytes of the integer to the buffer in little-endian order,
+  // starting with the lowest byte first.
   for (size_t ii = 0; ii < size; ii += 1) {
     buf[ii] = val & 0xff;
     val >>= 8;
@@ -128,7 +156,7 @@ AsmError push_int_le(char *buf, uint64_t val, size_t size, uint8_t sign) {
 }
 
 AsmError assemble_instr(InstHt ht, char *input, size_t len, Token *tok,
-                        ByteVec *rv, HoleVec *holes, LabelVec *labels) {
+                        ByteVec *rv, HoleVec *holes) {
   const InstDesc *inst;
   const char *type_str;
   size_t nargs;
@@ -168,7 +196,10 @@ AsmError assemble_instr(InstHt ht, char *input, size_t len, Token *tok,
     *tok = token(input, len, tok->start + tok->len);
     if (tok->kind == TokNeg) {
       *tok = token(input, len, tok->start + tok->len);
-      is_negative = ~(uint64_t)0;
+      if (tok->kind != TokNumber) {
+        return ErrTriedNegateNonNumber;
+      }
+      is_negative -= 1;
     }
     if (chr == 'R') {
       int reg = parse_register(&input[tok->start], tok->len);
@@ -181,26 +212,18 @@ AsmError assemble_instr(InstHt ht, char *input, size_t len, Token *tok,
       uint64_t num_to_write;
       if (meta.rel == 1 || meta.size == 8) {
         if (tok->kind == TokIdent) {
-          size_t idx = label_lookup(labels, &input[tok->start], tok->len);
-          if (idx == INVALID) {
-            if (ensure_push((ByteVec *)holes, 1, sizeof(Hole)) != 0) {
-              return ErrOutOfMemory;
-            }
-            holes->buf[holes->len] = (Hole){
-                .location = rv->len,
-                .origin = inst_start,
-                .str = &input[tok->start],
-                .len = tok->len,
-                .size = (size_t)meta.size,
-            };
-            holes->len += 1;
-            num_to_write = 0;
-          } else {
-            num_to_write = labels->buf[idx].location;
-            if (meta.size != 8) {
-              num_to_write -= inst_start;
-            }
+          if (ensure_push((ByteVec*)holes, sizeof(Hole), 1) != 0) {
+            return ErrOutOfMemory;
           }
+          holes->buf[holes->len] = (Hole) {
+              .location = rv->len,
+              .origin = inst_start,
+              .str = &input[tok->start],
+              .len = tok->len,
+              .size = (size_t)meta.size,
+          };
+          holes->len += 1;
+          num_to_write = 0;
         } else if (tok->kind == TokNumber) {
           num_to_write = tok->num;
         } else {
@@ -221,18 +244,17 @@ AsmError assemble_instr(InstHt ht, char *input, size_t len, Token *tok,
       }
       AsmError err =
           push_int_le(&rv->buf[rv->len], num_to_write, meta.size, meta.sign);
-      if (err != 0) {
+      if (err != ErrOk) {
         return err;
       }
       rv->len += meta.size;
     }
   }
 
-  return 0;
+  return ErrOk;
 }
 
-AsmError assemble(InstHt ht, char *input, size_t len, ByteVec *out,
-                  EInfo *einfo) {
+AsmError assemble(InstHt ht, char *input, size_t len, ByteVec *out, EInfo *einfo) {
   ByteVec rv = {malloc(MIN_SIZE), MIN_SIZE, 0};
   HoleVec holes = {malloc(MIN_SIZE * sizeof(Hole)), MIN_SIZE, 0};
   LabelVec labels = {malloc(MIN_SIZE * sizeof(Label)), MIN_SIZE, 0};
@@ -312,7 +334,7 @@ AsmError assemble(InstHt ht, char *input, size_t len, ByteVec *out,
           goto end;
         }
         line_state = 2;
-        err = assemble_instr(ht, input, len, &tok, &rv, &holes, &labels);
+        err = assemble_instr(ht, input, len, &tok, &rv, &holes);
         pos = tok.start + tok.len;
         if (err != 0) {
           goto end;
@@ -328,9 +350,9 @@ AsmError assemble(InstHt ht, char *input, size_t len, ByteVec *out,
     Hole *hole = &holes.buf[ii];
     size_t idx = label_lookup(&labels, hole->str, hole->len);
     uint64_t num_to_write = labels.buf[idx].location;
-    uint8_t sign = 1;
+    uint8_t sign = 2;
     if (hole->size != 8) {
-      sign = 2;
+      sign = 1;
       num_to_write -= hole->origin;
     }
     err = push_int_le(&rv.buf[hole->location], num_to_write, hole->size, sign);
