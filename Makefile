@@ -14,7 +14,7 @@ build/hbas: build src/hbas.c
 	${CC} ${CFLAGS} ${CFLAGS_EXTRA} src/hbas.c -o build/hbas
 
 build/example.hbf: build build/hbas examples/example.S
-	./hbas < examples/example.S > build/example.hbf
+	./build/hbas < examples/example.S > build/example.hbf
 	xxd build/example.hbf
 
 clean:
