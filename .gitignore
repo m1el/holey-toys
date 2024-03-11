@@ -1,2 +1,3 @@
 hbas
-example
+*.hbf
+build/*
