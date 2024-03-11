@@ -1,7 +1,7 @@
 typedef struct InstDesc_s {
-  char *mnemonic;
-  unsigned char opcode;
-  Operands type;
+    char *mnemonic;
+    unsigned char opcode;
+    Operands type;
 } InstDesc;
 
 const InstDesc INST[] = {
@@ -68,11 +68,11 @@ const InstDesc INST[] = {
 
 const size_t INST_CNT = sizeof(INST) / sizeof(INST[0]);
 size_t inst_find(const char *mnemonic, size_t len) {
-  for (size_t ii = 0; ii < INST_CNT; ii += 1) {
-    const char *entry = INST[ii].mnemonic;
-    if (strncmp(entry, mnemonic, len) == 0 && entry[len] == '\0') {
-      return ii;
+    for (size_t ii = 0; ii < INST_CNT; ii += 1) {
+        const char *entry = INST[ii].mnemonic;
+        if (strncmp(entry, mnemonic, len) == 0 && entry[len] == '\0') {
+            return ii;
+        }
     }
-  }
-  return INVALID;
+    return INVALID;
 }

@@ -23,7 +23,8 @@ Token token_ident(char *input, size_t len, size_t pos) {
     while (pos < len) {
         char chr = input[pos];
         char chru = chr & ~0x20;
-        int good = chr == '_' || (chr >= '0' && chr <= '9') || (chru >= 'A' && chru <= 'Z');
+        int good = chr == '_' || (chr >= '0' && chr <= '9') ||
+                   (chru >= 'A' && chru <= 'Z');
         if (!good) {
             break;
         }
