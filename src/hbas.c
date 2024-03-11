@@ -156,7 +156,7 @@ AsmError push_int_le(char *buf, uint64_t val, size_t size, uint8_t sign) {
 }
 
 AsmError assemble_instr(InstHt ht, char *input, size_t len, Token *tok,
-                        ByteVec *rv, HoleVec *holes, LabelVec *labels) {
+                        ByteVec *rv, HoleVec *holes) {
   const InstDesc *inst;
   const char *type_str;
   size_t nargs;
@@ -196,7 +196,10 @@ AsmError assemble_instr(InstHt ht, char *input, size_t len, Token *tok,
     *tok = token(input, len, tok->start + tok->len);
     if (tok->kind == TokNeg) {
       *tok = token(input, len, tok->start + tok->len);
-      is_negative = ~(uint64_t)0;
+      if (tok->kind != TokNumber) {
+        return ErrTriedNegateNonNumber;
+      }
+      is_negative -= 1;
     }
     if (chr == 'R') {
       int reg = parse_register(&input[tok->start], tok->len);
@@ -209,26 +212,18 @@ AsmError assemble_instr(InstHt ht, char *input, size_t len, Token *tok,
       uint64_t num_to_write;
       if (meta.rel == 1 || meta.size == 8) {
         if (tok->kind == TokIdent) {
-          size_t idx = label_lookup(labels, &input[tok->start], tok->len);
-          if (idx == INVALID) {
-            if (ensure_push((ByteVec *)holes, 1, sizeof(Hole)) != 0) {
-              return ErrOutOfMemory;
-            }
-            holes->buf[holes->len] = (Hole){
-                .location = rv->len,
-                .origin = inst_start,
-                .str = &input[tok->start],
-                .len = tok->len,
-                .size = (size_t)meta.size,
-            };
-            holes->len += 1;
-            num_to_write = 0;
-          } else {
-            num_to_write = labels->buf[idx].location;
-            if (meta.size != 8) {
-              num_to_write -= inst_start;
-            }
+          if (ensure_push((ByteVec*)holes, sizeof(Hole), 1) != 0) {
+            return ErrOutOfMemory;
           }
+          holes->buf[holes->len] = (Hole) {
+              .location = rv->len,
+              .origin = inst_start,
+              .str = &input[tok->start],
+              .len = tok->len,
+              .size = (size_t)meta.size,
+          };
+          holes->len += 1;
+          num_to_write = 0;
         } else if (tok->kind == TokNumber) {
           num_to_write = tok->num;
         } else {
@@ -249,18 +244,17 @@ AsmError assemble_instr(InstHt ht, char *input, size_t len, Token *tok,
       }
       AsmError err =
           push_int_le(&rv->buf[rv->len], num_to_write, meta.size, meta.sign);
-      if (err != 0) {
+      if (err != ErrOk) {
         return err;
       }
       rv->len += meta.size;
     }
   }
 
-  return 0;
+  return ErrOk;
 }
 
-AsmError assemble(InstHt ht, char *input, size_t len, ByteVec *out,
-                  EInfo *einfo) {
+AsmError assemble(InstHt ht, char *input, size_t len, ByteVec *out, EInfo *einfo) {
   ByteVec rv = {malloc(MIN_SIZE), MIN_SIZE, 0};
   HoleVec holes = {malloc(MIN_SIZE * sizeof(Hole)), MIN_SIZE, 0};
   LabelVec labels = {malloc(MIN_SIZE * sizeof(Label)), MIN_SIZE, 0};
@@ -340,7 +334,7 @@ AsmError assemble(InstHt ht, char *input, size_t len, ByteVec *out,
           goto end;
         }
         line_state = 2;
-        err = assemble_instr(ht, input, len, &tok, &rv, &holes, &labels);
+        err = assemble_instr(ht, input, len, &tok, &rv, &holes);
         pos = tok.start + tok.len;
         if (err != 0) {
           goto end;
@@ -356,9 +350,9 @@ AsmError assemble(InstHt ht, char *input, size_t len, ByteVec *out,
     Hole *hole = &holes.buf[ii];
     size_t idx = label_lookup(&labels, hole->str, hole->len);
     uint64_t num_to_write = labels.buf[idx].location;
-    uint8_t sign = 1;
+    uint8_t sign = 2;
     if (hole->size != 8) {
-      sign = 2;
+      sign = 1;
       num_to_write -= hole->origin;
     }
     err = push_int_le(&rv.buf[hole->location], num_to_write, hole->size, sign);
