@@ -17,6 +17,7 @@ typedef enum AsmError_e {
   ErrNeedDirectiveAfterDot,
   ErrDirectiveNotImplemented,
   ErrUnexpectedToken,
+  ErrTriedNegateNonNumber,
 } AsmError;
 char *ERRORS[] = {
     "Success",
@@ -37,4 +38,5 @@ char *ERRORS[] = {
     "Expected directive after dot",
     "Directive is not implemented",
     "Unexpected token",
+    "Negation only works on numbers",
 };
