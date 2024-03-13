@@ -6,6 +6,7 @@ typedef struct ByteVec_s {
     size_t len;
 } ByteVec;
 
+static
 AsmError ensure_push(ByteVec *vec, size_t el_size, size_t extra) {
     if (vec->len + extra < vec->len) {
         return ErrOutOfMemory;

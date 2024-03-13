@@ -55,6 +55,8 @@ const char *TYPE_STR[] = {
 };
 
 const size_t NARGS = sizeof(ARGS) / sizeof(ARGS[0]);
+
+static
 ArgMeta arg_meta(char arg) {
     for (size_t ii = 0; ii < NARGS; ii += 1) {
         ArgMeta meta = ARGS[ii];

@@ -18,6 +18,7 @@ typedef struct Token_s {
     uint64_t num;
 } Token;
 
+static
 Token token_ident(char *input, size_t len, size_t pos) {
     size_t start = pos;
     while (pos < len) {
@@ -33,6 +34,7 @@ Token token_ident(char *input, size_t len, size_t pos) {
     return (Token){TokIdent, start, pos - start, 0};
 }
 
+static
 Token token_number(char *input, size_t len, size_t pos) {
     char *ptr = &input[pos];
     char next = '\0';
@@ -109,6 +111,7 @@ Token token_number(char *input, size_t len, size_t pos) {
     }
 }
 
+static
 Token token(char *input, size_t len, size_t pos) {
     char chr, chru;
     char *ptr = &input[pos];

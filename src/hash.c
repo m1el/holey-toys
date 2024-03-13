@@ -5,6 +5,7 @@ typedef struct InstHtNode_s {
 } InstHtNode;
 typedef InstHtNode *InstHt;
 
+static
 uint32_t inst_hash(const char *s, size_t len) {
     uint32_t hash = 0;
     uint32_t mul = 75;
@@ -15,6 +16,7 @@ uint32_t inst_hash(const char *s, size_t len) {
     return hash;
 }
 
+static
 InstHt build_lookup(void) {
     const size_t size = 256;
     InstHt table = (InstHt)malloc(size * sizeof(InstHtNode));
@@ -40,6 +42,7 @@ InstHt build_lookup(void) {
     return table;
 }
 
+static
 size_t inst_lookup(InstHt ht, const char *s, size_t len) {
     uint32_t hash = inst_hash(s, len);
     uint8_t *node = (uint8_t *)&ht[(size_t)(hash & 0xff)];

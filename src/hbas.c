@@ -174,9 +174,11 @@ AsmError push_int_le(char *buf, uint64_t val, size_t size, uint8_t sign) {
         buf[ii] = val & 0xff;
         val >>= 8;
     }
+
     return ErrOk;
 }
 
+static
 AsmError assemble_instr(InstHt ht, char *input, size_t len, Token *tok,
                         ByteVec *rv, HoleVec *holes) {
     const InstDesc *inst;
