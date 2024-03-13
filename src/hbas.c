@@ -21,6 +21,7 @@ SOFTWARE.
 */
 
 #include <stdint.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -39,18 +40,28 @@ SOFTWARE.
 //
 #include "einfo.h"
 
-void hd(char *data, size_t len) {
+// Print space-separated hex dump of each byte, 16 bytes per line.
+// Can be reversed with `xxd -p -r`.
+static
+void hex_dump(char *data, size_t len) {
+    char buf[48];
+    const char *alphabet = "0123456789abcdef";
     for (size_t ii = 0; ii < len; ii += 1) {
-        if (ii > 0 && (ii & 15) == 0) {
-            printf("\n");
+        size_t val = (uint8_t)data[ii];
+        size_t pos = (ii & 0x0f) * 3;
+        buf[pos] = alphabet[val >> 4];
+        buf[pos + 1] = alphabet[val & 0x0f];
+        buf[pos + 2] = ' ';
+        if (((ii & 0x0f) == 0x0f) || ii + 1 == len) {
+            buf[pos + 2] = '\n';
+            fwrite(&buf[0], 1, pos + 3, stdout);
         }
-        printf("%02x", (uint8_t)data[ii]);
     }
-    printf("\n");
 }
 
 #define MIN_SIZE 4096
 
+static
 int slurp(FILE *fd, ByteVec *out) {
     ByteVec rv = {malloc(MIN_SIZE), MIN_SIZE, 0};
     size_t bread = 1;
@@ -98,6 +109,7 @@ typedef struct LabelVec_s {
     size_t len;
 } LabelVec;
 
+static
 size_t label_lookup(LabelVec *labels, char *name, size_t len) {
     size_t nlabels = labels->len;
     Label *buf = labels->buf;
@@ -110,10 +122,12 @@ size_t label_lookup(LabelVec *labels, char *name, size_t len) {
     return INVALID;
 }
 
-// safety: assumes the buffer has enough place for specified integer size.
-// `sign` is a bitset, where bit `1` indicates that value accepts a signed int,
-// and bit `2` indicates that value accepts an unsigned int.
-AsmError push_int_le(char *buf, uint64_t val, size_t size, uint8_t sign) {
+static
+bool check_valid_int(uint64_t val, size_t size, uint8_t sign) {
+    // All 64-bit values are considered valid.
+    if (size == 8) {
+        return true;
+    }
     // Unsigned integers must have all upper bits set to zero. To check this,
     // we shift the value right by the integer size and verify it equals zero.
     int valid_uint = (val >> (size * 8)) == 0;
@@ -142,7 +156,15 @@ AsmError push_int_le(char *buf, uint64_t val, size_t size, uint8_t sign) {
 
     // If the value's validity doesn't match the `sign` requirements,
     // we report an overflow.
-    if ((validity & sign) == 0) {
+    return (validity & sign) != 0;
+}
+
+// safety: assumes the buffer has enough place for specified integer size.
+// `sign` is a bitset, where bit `1` indicates that value accepts a signed int,
+// and bit `2` indicates that value accepts an unsigned int.
+static
+AsmError push_int_le(char *buf, uint64_t val, size_t size, uint8_t sign) {
+    if (!check_valid_int(val, size, sign)) {
         return ErrImmediateOverflow;
     }
 
@@ -405,7 +427,7 @@ int main(int argc, char **argv) {
         goto done;
     }
     if (hex_out) {
-        hd(out.buf, out.len);
+        hex_dump(out.buf, out.len);
     } else {
         fwrite(out.buf, 1, out.len, stdout);
     }
