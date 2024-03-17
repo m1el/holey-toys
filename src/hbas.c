@@ -20,8 +20,8 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
-#include <stdint.h>
 #include <stdbool.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -35,15 +35,16 @@ SOFTWARE.
 //
 #include "hash.c"
 //
+#include "push_int.c"
 #include "register.c"
 #include "token.c"
 //
+#include "directive.c"
 #include "einfo.h"
 
 // Print space-separated hex dump of each byte, 16 bytes per line.
 // Can be reversed with `xxd -p -r`.
-static
-void hex_dump(char *data, size_t len) {
+static void hex_dump(char *data, size_t len) {
     char buf[48];
     const char *alphabet = "0123456789abcdef";
     for (size_t ii = 0; ii < len; ii += 1) {
@@ -61,8 +62,7 @@ void hex_dump(char *data, size_t len) {
 
 #define MIN_SIZE 4096
 
-static
-int slurp(FILE *fd, ByteVec *out) {
+static int slurp(FILE *fd, ByteVec *out) {
     ByteVec rv = {malloc(MIN_SIZE), MIN_SIZE, 0};
     size_t bread = 1;
     int err = 0;
@@ -109,8 +109,7 @@ typedef struct LabelVec_s {
     size_t len;
 } LabelVec;
 
-static
-size_t label_lookup(LabelVec *labels, char *name, size_t len) {
+static size_t label_lookup(LabelVec *labels, char *name, size_t len) {
     size_t nlabels = labels->len;
     Label *buf = labels->buf;
     for (size_t ii = 0; ii < nlabels; ii += 1) {
@@ -122,65 +121,8 @@ size_t label_lookup(LabelVec *labels, char *name, size_t len) {
     return INVALID;
 }
 
-static
-bool check_valid_int(uint64_t val, size_t size, uint8_t sign) {
-    // All 64-bit values are considered valid.
-    if (size == 8) {
-        return true;
-    }
-    // Unsigned integers must have all upper bits set to zero. To check this,
-    // we shift the value right by the integer size and verify it equals zero.
-    int valid_uint = (val >> (size * 8)) == 0;
-
-    // For signed integers, the sign-extended high bits must match the sign bit.
-    // By shifting right by one less than the total bit size (size * 8 - 1),
-    // we isolate the sign bit and any sign-extended bits. For a value fitting
-    // in the signed range, this operation results in either 0 (for non-negative
-    // values) or -1 (for negative values due to sign extension).
-    int64_t int_shifted = ((int64_t)val) >> (size * 8 - 1);
-
-    // To unify the check for both positive and negative cases, we adjust
-    // non-zero values (-1) by incrementing by 1.  This turns -1 into 0,
-    // enabling a single check for 0 to validate both cases.  This adjustment
-    // simplifies the validation logic, allowing us to use a single condition to
-    // check for proper sign extension or zero extension in the original value.
-    int_shifted += int_shifted != 0;
-
-    // A valid signed integer will have `int_shifted` equal to 0
-    // after adjustment, indicating proper sign extension.
-    int valid_int = int_shifted == 0;
-
-    // Validity bitmask to represents whether the value
-    // fits as signed, unsigned, or both.
-    int validity = valid_int | (valid_uint << 1);
-
-    // If the value's validity doesn't match the `sign` requirements,
-    // we report an overflow.
-    return (validity & sign) != 0;
-}
-
-// safety: assumes the buffer has enough place for specified integer size.
-// `sign` is a bitset, where bit `1` indicates that value accepts a signed int,
-// and bit `2` indicates that value accepts an unsigned int.
-static
-AsmError push_int_le(char *buf, uint64_t val, size_t size, uint8_t sign) {
-    if (!check_valid_int(val, size, sign)) {
-        return ErrImmediateOverflow;
-    }
-
-    // Write out the bytes of the integer to the buffer in little-endian order,
-    // starting with the lowest byte first.
-    for (size_t ii = 0; ii < size; ii += 1) {
-        buf[ii] = val & 0xff;
-        val >>= 8;
-    }
-
-    return ErrOk;
-}
-
-static
-AsmError assemble_instr(InstHt ht, char *input, size_t len, Token *tok,
-                        ByteVec *rv, HoleVec *holes) {
+static AsmError assemble_instr(InstHt ht, char *input, size_t len, Token *tok,
+                               ByteVec *rv, HoleVec *holes) {
     const InstDesc *inst;
     const char *type_str;
     size_t nargs;
@@ -265,6 +207,8 @@ AsmError assemble_instr(InstHt ht, char *input, size_t len, Token *tok,
                     return ErrBadNumOverflow;
                 }
                 num_to_write = (uint64_t)tmp;
+            } else if (meta.sign == 2 && (int)num_to_write < 0) {
+                return ErrBadNumOverflow;
             }
             AsmError err = push_int_le(&rv->buf[rv->len], num_to_write,
                                        meta.size, meta.sign);
@@ -283,6 +227,9 @@ AsmError assemble(InstHt ht, char *input, size_t len, ByteVec *out,
     ByteVec rv = {malloc(MIN_SIZE), MIN_SIZE, 0};
     HoleVec holes = {malloc(MIN_SIZE * sizeof(Hole)), MIN_SIZE, 0};
     LabelVec labels = {malloc(MIN_SIZE * sizeof(Label)), MIN_SIZE, 0};
+    if (rv.buf == NULL || holes.buf == NULL || labels.buf == NULL) {
+        return ErrOutOfMemory;
+    }
     size_t line = 0;
     size_t line_start = 0;
     size_t pos = 0;
@@ -317,11 +264,15 @@ AsmError assemble(InstHt ht, char *input, size_t len, ByteVec *out,
         }
         if (tok.kind == TokDot) {
             Token next = token(input, len, pos);
-            if (next.kind == TokIdent) {
-                err = ErrDirectiveNotImplemented;
-                goto end;
-            } else {
+            einfo->token = next;
+            if (next.kind != TokIdent) {
                 err = ErrNeedDirectiveAfterDot;
+                goto end;
+            }
+            err = assemble_directive(input, len, &rv, &next);
+            pos = next.start + next.len;
+            einfo->token = next;
+            if (err != ErrOk) {
                 goto end;
             }
             continue;

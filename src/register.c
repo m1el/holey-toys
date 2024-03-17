@@ -1,5 +1,4 @@
-static
-int parse_register(char *name, size_t len) {
+static int parse_register(char *name, size_t len) {
     if (name[0] != 'r') {
         return 256;  // Register name should start with 'r'
     }
