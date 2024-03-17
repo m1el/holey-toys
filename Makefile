@@ -17,7 +17,7 @@ check-format:
 build:
 	mkdir -p build
 
-build/hbas: build src/hbas.c
+build/hbas: build $(wildcard src/*.h src/*.c)
 	${CC} ${CFLAGS} ${CFLAGS_EXTRA} src/hbas.c -o build/hbas
 
 build/example.hbf: build build/hbas examples/example.S
