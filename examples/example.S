@@ -18,7 +18,9 @@ hello_string:
 hello_string_end:
     .db 42, "hi", 43
     ; TODO .db 'H', 'e', 'l', 'l', 'o', '\0'
+    .align 2
+    .dw 0x4546
     .align 4
-    .dw 42
-    .dd 42
-    .dq 42
+    .dd 0x4748494a
+    .align 8
+    .dq 0x5051525354555657

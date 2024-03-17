@@ -132,6 +132,7 @@ AsmError assemble_directive(char *input, size_t len, ByteVec *out, Token *tok) {
         if (ensure_push(out, 1, aligned - out->len) != 0) {
             return ErrOutOfMemory;
         }
+        // TODO: zero-fill?
         out->len = aligned;
     }
     return ErrOk;
