@@ -20,8 +20,8 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
-#include <stdint.h>
 #include <stdbool.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -42,8 +42,7 @@ SOFTWARE.
 
 // Print space-separated hex dump of each byte, 16 bytes per line.
 // Can be reversed with `xxd -p -r`.
-static
-void hex_dump(char *data, size_t len) {
+static void hex_dump(char *data, size_t len) {
     char buf[48];
     const char *alphabet = "0123456789abcdef";
     for (size_t ii = 0; ii < len; ii += 1) {
@@ -61,8 +60,7 @@ void hex_dump(char *data, size_t len) {
 
 #define MIN_SIZE 4096
 
-static
-int slurp(FILE *fd, ByteVec *out) {
+static int slurp(FILE *fd, ByteVec *out) {
     ByteVec rv = {malloc(MIN_SIZE), MIN_SIZE, 0};
     size_t bread = 1;
     int err = 0;
@@ -109,8 +107,7 @@ typedef struct LabelVec_s {
     size_t len;
 } LabelVec;
 
-static
-size_t label_lookup(LabelVec *labels, char *name, size_t len) {
+static size_t label_lookup(LabelVec *labels, char *name, size_t len) {
     size_t nlabels = labels->len;
     Label *buf = labels->buf;
     for (size_t ii = 0; ii < nlabels; ii += 1) {
@@ -122,8 +119,7 @@ size_t label_lookup(LabelVec *labels, char *name, size_t len) {
     return INVALID;
 }
 
-static
-bool check_valid_int(uint64_t val, size_t size, uint8_t sign) {
+static bool check_valid_int(uint64_t val, size_t size, uint8_t sign) {
     // All 64-bit values are considered valid.
     if (size == 8) {
         return true;
@@ -162,8 +158,8 @@ bool check_valid_int(uint64_t val, size_t size, uint8_t sign) {
 // safety: assumes the buffer has enough place for specified integer size.
 // `sign` is a bitset, where bit `1` indicates that value accepts a signed int,
 // and bit `2` indicates that value accepts an unsigned int.
-static
-AsmError push_int_le(char *buf, uint64_t val, size_t size, uint8_t sign) {
+static AsmError push_int_le(char *buf, uint64_t val, size_t size,
+                            uint8_t sign) {
     if (!check_valid_int(val, size, sign)) {
         return ErrImmediateOverflow;
     }
@@ -186,37 +182,37 @@ AsmError push_string(char *buf, char *input, size_t len) {
             pos += 1;
             chr = input[pos];
             switch (chr) {
-            case '\\':
-                chr = '\\';
-                break;
-            case '"':
-                chr = '"';
-                break;
-            case 'r':
-                chr = '\r';
-                break;
-            case 'n':
-                chr = '\n';
-                break;
-            case '0':
-                chr = '\0';
-                break;
-            case 't':
-                chr = '\t';
-                break;
-            case 'x':
-                if (pos + 2 >= len) {
-                    return ErrDanglingEscape;
-                }
-                char high = get_hex(input[pos + 1]);
-                char low = get_hex(input[pos + 2]);
-                if (high > 15 || low > 15) {
-                    return ErrStringBadHex;
-                }
-                chr = high << 4 | low;
-                break;
-            default:
-                return ErrBadStringEscape;
+                case '\\':
+                    chr = '\\';
+                    break;
+                case '"':
+                    chr = '"';
+                    break;
+                case 'r':
+                    chr = '\r';
+                    break;
+                case 'n':
+                    chr = '\n';
+                    break;
+                case '0':
+                    chr = '\0';
+                    break;
+                case 't':
+                    chr = '\t';
+                    break;
+                case 'x':
+                    if (pos + 2 >= len) {
+                        return ErrDanglingEscape;
+                    }
+                    char high = get_hex(input[pos + 1]);
+                    char low = get_hex(input[pos + 2]);
+                    if (high > 15 || low > 15) {
+                        return ErrStringBadHex;
+                    }
+                    chr = high << 4 | low;
+                    break;
+                default:
+                    return ErrBadStringEscape;
             }
         }
         buf[ndata] = chr;
@@ -225,9 +221,8 @@ AsmError push_string(char *buf, char *input, size_t len) {
     return ErrOk;
 }
 
-static
-AsmError assemble_instr(InstHt ht, char *input, size_t len, Token *tok,
-                        ByteVec *rv, HoleVec *holes) {
+static AsmError assemble_instr(InstHt ht, char *input, size_t len, Token *tok,
+                               ByteVec *rv, HoleVec *holes) {
     const InstDesc *inst;
     const char *type_str;
     size_t nargs;
@@ -327,8 +322,8 @@ AsmError assemble_instr(InstHt ht, char *input, size_t len, Token *tok,
     return ErrOk;
 }
 
-static
-AsmError push_data(char *input, size_t len, ByteVec *out, Token *tok, size_t word_size) {
+static AsmError push_data(char *input, size_t len, ByteVec *out, Token *tok,
+                          size_t word_size) {
     while (1) {
         *tok = token(input, len, tok->start + tok->len);
         if (tok->kind == TokNumber) {
@@ -375,20 +370,20 @@ AsmError assemble_directive(char *input, size_t len, ByteVec *out, Token *tok) {
     if (byte0 == 'd') {
         size_t word_size;
         switch (byte1) {
-        case 'b':
-            word_size = 1;
-            break;
-        case 'w':
-            word_size = 2;
-            break;
-        case 'd':
-            word_size = 4;
-            break;
-        case 'q':
-            word_size = 8;
-            break;
-        default:
-            return ErrInvalidDirective;
+            case 'b':
+                word_size = 1;
+                break;
+            case 'w':
+                word_size = 2;
+                break;
+            case 'd':
+                word_size = 4;
+                break;
+            case 'q':
+                word_size = 8;
+                break;
+            default:
+                return ErrInvalidDirective;
         }
         return push_data(input, len, out, tok, word_size);
     }
