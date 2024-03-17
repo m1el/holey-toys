@@ -14,7 +14,7 @@ start:
 end:
     tx
 hello_string:
-    .db "Hello,\x20world\n", 0
+    .db "Hello, w\x6frld\n", 0
 hello_string_end:
     .db 42, "hi", 43
     ; TODO .db 'H', 'e', 'l', 'l', 'o', '\0'

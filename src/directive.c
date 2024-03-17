@@ -91,7 +91,7 @@ AsmError assemble_directive(char *input, size_t len, ByteVec *out, Token *tok) {
     size_t pos = tok->start;
     char byte0 = input[pos];
     char byte1 = input[pos + 1];
-    if (byte0 == 'd') {
+    if (tok->len == 0 && byte0 == 'd') {
         size_t word_size;
         switch (byte1) {
             case 'b':
