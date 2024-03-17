@@ -3,10 +3,10 @@ AsmError push_string(char *buf, char *input, size_t len) {
     for (size_t pos = 0; pos < len; pos += 1) {
         char chr = input[pos];
         if (chr == '\\') {
-            pos += 1;
             if (pos + 1 >= len) {
                 return ErrDanglingEscape;
             }
+            pos += 1;
             chr = input[pos];
             size_t offset = 1;
             switch (chr) {
@@ -96,7 +96,7 @@ AsmError assemble_directive(char *input, size_t len, ByteVec *out, Token *tok) {
     size_t pos = tok->start;
     char byte0 = input[pos];
     char byte1 = input[pos + 1];
-    if (tok->len == 0 && byte0 == 'd') {
+    if (tok->len == 2 && byte0 == 'd') {
         size_t word_size;
         switch (byte1) {
             case 'b':
@@ -122,7 +122,7 @@ AsmError assemble_directive(char *input, size_t len, ByteVec *out, Token *tok) {
             return ErrAlignNeedsNumber;
         }
         size_t mask = tok->num - 1;
-        if ((tok->num & mask) != 0) {
+        if (tok->num == 0 || (tok->num & mask) != 0) {
             return ErrAlignNeedsPow2;
         }
         if ((~(size_t)0) - mask < out->len) {
@@ -134,6 +134,7 @@ AsmError assemble_directive(char *input, size_t len, ByteVec *out, Token *tok) {
         }
         // TODO: zero-fill?
         out->len = aligned;
+        return ErrOk;
     }
-    return ErrOk;
+    return ErrInvalidDirective;
 }
