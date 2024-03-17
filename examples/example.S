@@ -2,8 +2,7 @@
 ; https://git.ablecorp.us/AbleOS/holey-bytes/src/branch/trunk/spec.md
 ; TODO:
 ; .origin 0x1000
-; .align 0x100
-; .db "hello"
+; 'c' char literals
 ; .struct
 start:
     jmp end
