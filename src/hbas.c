@@ -35,11 +35,11 @@ SOFTWARE.
 //
 #include "hash.c"
 //
+#include "push_int.c"
 #include "register.c"
 #include "token.c"
-#include "push_int.c"
-#include "directive.c"
 //
+#include "directive.c"
 #include "einfo.h"
 
 // Print space-separated hex dump of each byte, 16 bytes per line.
