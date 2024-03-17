@@ -227,6 +227,9 @@ AsmError assemble(InstHt ht, char *input, size_t len, ByteVec *out,
     ByteVec rv = {malloc(MIN_SIZE), MIN_SIZE, 0};
     HoleVec holes = {malloc(MIN_SIZE * sizeof(Hole)), MIN_SIZE, 0};
     LabelVec labels = {malloc(MIN_SIZE * sizeof(Label)), MIN_SIZE, 0};
+    if (rv.buf == NULL || holes.buf == NULL || labels.buf == NULL) {
+        return ErrOutOfMemory;
+    }
     size_t line = 0;
     size_t line_start = 0;
     size_t pos = 0;
