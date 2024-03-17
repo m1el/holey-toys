@@ -7,6 +7,7 @@ CLANG_FORMAT_STYLE = '{ BasedOnStyle: Google, IndentWidth: 4 }'
 
 hbas: build/hbas
 example: build/example.hbf
+hello: build/hello.hbf
 
 format:
 	clang-format --style=${CLANG_FORMAT_STYLE} -i src/*
@@ -23,6 +24,10 @@ build/hbas: build $(wildcard src/*.h src/*.c)
 build/example.hbf: build build/hbas examples/example.S
 	./build/hbas < examples/example.S > build/example.hbf
 	xxd build/example.hbf
+
+build/hello.hbf: build build/hbas examples/hello.S
+	./build/hbas < examples/hello.S > build/hello.hbf
+	xxd build/hello.hbf
 
 clean:
 	rm -rf build
