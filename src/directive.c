@@ -76,7 +76,7 @@ static AsmError push_data(char *input, size_t len, ByteVec *out, Token *tok,
             }
             out->len += tok->num;
         } else {
-            return ErrUnexpectedToken;
+            return ErrNeedsDataLiteral;
         }
         *tok = token(input, len, tok->start + tok->len);
         if (tok->kind == TokNewline || tok->kind == TokEOF) {
@@ -85,7 +85,7 @@ static AsmError push_data(char *input, size_t len, ByteVec *out, Token *tok,
         if (tok->kind == TokComma) {
             continue;
         }
-        return ErrInvalidToken;
+        return ErrNeedCommaOrNewline;
     }
 }
 

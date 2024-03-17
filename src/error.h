@@ -26,6 +26,8 @@ typedef enum AsmError_e {
     ErrStringDataNotByte,
     ErrAlignNeedsNumber,
     ErrAlignNeedsPow2,
+    ErrNeedCommaOrNewline,
+    ErrNeedsDataLiteral,
 } AsmError;
 char *ERRORS[] = {
     "Success",
@@ -55,4 +57,6 @@ char *ERRORS[] = {
     "String literals can be used only in .db directive",
     ".align requires a number",
     ".align requires a power of two as an argument",
+    "Need comma or newline after data literal",
+    "Data literal expects a number or a string",
 };
