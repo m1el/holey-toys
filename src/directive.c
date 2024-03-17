@@ -4,7 +4,11 @@ AsmError push_string(char *buf, char *input, size_t len) {
         char chr = input[pos];
         if (chr == '\\') {
             pos += 1;
+            if (pos + 1 >= len) {
+                return ErrDanglingEscape;
+            }
             chr = input[pos];
+            size_t offset = 1;
             switch (chr) {
                 case '\\':
                     chr = '\\';
@@ -30,7 +34,7 @@ AsmError push_string(char *buf, char *input, size_t len) {
                     }
                     char high = get_hex(input[pos + 1]);
                     char low = get_hex(input[pos + 2]);
-                    pos += 2;
+                    offset = 2;
                     if (high > 15 || low > 15) {
                         return ErrStringBadHex;
                     }
@@ -39,6 +43,7 @@ AsmError push_string(char *buf, char *input, size_t len) {
                 default:
                     return ErrBadStringEscape;
             }
+            pos += offset;
         }
         buf[ndata] = chr;
         ndata += 1;
