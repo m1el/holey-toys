@@ -18,6 +18,14 @@ typedef enum AsmError_e {
     ErrDirectiveNotImplemented,
     ErrUnexpectedToken,
     ErrTriedNegateNonNumber,
+    ErrInvalidDirective,
+    ErrStringNewLine,
+    ErrDanglingEscape,
+    ErrStringBadHex,
+    ErrBadStringEscape,
+    ErrStringDataNotByte,
+    ErrAlignNeedsNumber,
+    ErrAlignNeedsPow2,
 } AsmError;
 char *ERRORS[] = {
     "Success",
@@ -39,4 +47,12 @@ char *ERRORS[] = {
     "Directive is not implemented",
     "Unexpected token",
     "Negation only works on numbers",
+    "Invalid directive",
+    "String contains a raw newline (did you forget to close the quote?)",
+    "Dangling escape in string literal",
+    "Bad hex in string literal",
+    "Bad escape sequence in string literal",
+    "String literals can be used only in .db directive",
+    ".align requires a number",
+    ".align requires a power of two as an argument",
 };

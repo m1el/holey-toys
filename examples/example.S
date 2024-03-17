@@ -8,10 +8,18 @@
 start:
     jmp end
     un
-    ; .db "hello world\n"
     add16 r1, r2, r255
     addi8 r1, r2, -128
     lra r1, r0, start
     jmp start
 end:
     tx
+hello_string:
+    .db "Hello,", " world\n", 0
+hello_string_end:
+    .db 42, "hi", 43
+    ; TODO .db 'H', 'e', 'l', 'l', 'o', '\0'
+    .align 4
+    .dw 42
+    .dd 42
+    .dq 42

@@ -10,6 +10,7 @@ typedef enum TokenKind_e {
     TokColon = ':',
     TokComment = ';',
     TokNewline = 'n',
+    TokString = 's',
 } TokenKind;
 typedef struct Token_s {
     TokenKind kind;
@@ -112,6 +113,60 @@ Token token_number(char *input, size_t len, size_t pos) {
 }
 
 static
+char get_hex(char chr) {
+    char chru = chr & ~0x20;
+    if (chr >= '0' && chr <= '9') {
+        return chr - '0';
+    }
+    if (chru >= 'A' && chru <= 'F') {
+        return chru - ('A' - 10);
+    }
+    return 16;
+}
+
+static
+Token token_string(char *input, size_t len, size_t pos) {
+    size_t start = pos;
+    size_t ndata = 0;
+    for (pos += 1; pos < len; pos += 1) {
+        if (input[pos] == '"') {
+            return (Token){TokString, start, pos + 1 - start, ndata};
+        }
+        if (input[pos] == '\n' || input[pos] == '\r') {
+            return (Token){TokInvalid, start, pos + 1 - start, ErrStringNewLine};
+        }
+        if (input[pos] == '\\') {
+            if (pos + 1 >= len) {
+                return (Token){TokInvalid, start, pos - start, ErrDanglingEscape};
+            }
+            pos += 1;
+            switch (input[pos]) {
+            case '\\':
+            case '"':
+            case 'r':
+            case 'n':
+            case '0':
+            case 't':
+                break;
+            case 'x':
+                if (pos + 2 >= len) {
+                    return (Token){TokInvalid, start, pos - start, ErrDanglingEscape};
+                }
+                if (get_hex(input[pos + 1]) > 15 || get_hex(input[pos + 2]) > 15) {
+                    return (Token){TokInvalid, start, pos - start, ErrStringBadHex};
+                }
+                pos += 2;
+                break;
+            default:
+                return (Token){TokInvalid, start, pos - start, ErrBadStringEscape};
+            }
+        }
+        ndata += 1;
+    }
+    return (Token){TokString, start, pos - start, ndata};
+}
+
+static
 Token token(char *input, size_t len, size_t pos) {
     char chr, chru;
     char *ptr = &input[pos];
@@ -141,6 +196,9 @@ Token token(char *input, size_t len, size_t pos) {
             clen += 1;
         }
         return (Token){TokComment, pos, clen, 0};
+    }
+    if (chr == '"') {
+        return token_string(input, len, pos);
     }
     if (chr >= '0' && chr <= '9') {
         return token_number(input, len, pos);
