@@ -16,7 +16,7 @@ end:
 hello_string:
     .db "Hello, w\x6frld\n", 0
 hello_string_end:
-    .db 42, "hi", 43
+    .db "hi"
     ; TODO .db 'H', 'e', 'l', 'l', 'o', '\0'
     .align 2
     .dw 0x4546
