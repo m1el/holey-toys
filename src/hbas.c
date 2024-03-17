@@ -37,6 +37,8 @@ SOFTWARE.
 //
 #include "register.c"
 #include "token.c"
+#include "push_int.c"
+#include "directive.c"
 //
 #include "einfo.h"
 
@@ -117,108 +119,6 @@ static size_t label_lookup(LabelVec *labels, char *name, size_t len) {
         buf += 1;
     }
     return INVALID;
-}
-
-static bool check_valid_int(uint64_t val, size_t size, uint8_t sign) {
-    // All 64-bit values are considered valid.
-    if (size == 8) {
-        return true;
-    }
-    // Unsigned integers must have all upper bits set to zero. To check this,
-    // we shift the value right by the integer size and verify it equals zero.
-    int valid_uint = (val >> (size * 8)) == 0;
-
-    // For signed integers, the sign-extended high bits must match the sign bit.
-    // By shifting right by one less than the total bit size (size * 8 - 1),
-    // we isolate the sign bit and any sign-extended bits. For a value fitting
-    // in the signed range, this operation results in either 0 (for non-negative
-    // values) or -1 (for negative values due to sign extension).
-    int64_t int_shifted = ((int64_t)val) >> (size * 8 - 1);
-
-    // To unify the check for both positive and negative cases, we adjust
-    // non-zero values (-1) by incrementing by 1.  This turns -1 into 0,
-    // enabling a single check for 0 to validate both cases.  This adjustment
-    // simplifies the validation logic, allowing us to use a single condition to
-    // check for proper sign extension or zero extension in the original value.
-    int_shifted += int_shifted != 0;
-
-    // A valid signed integer will have `int_shifted` equal to 0
-    // after adjustment, indicating proper sign extension.
-    int valid_int = int_shifted == 0;
-
-    // Validity bitmask to represents whether the value
-    // fits as signed, unsigned, or both.
-    int validity = valid_int | (valid_uint << 1);
-
-    // If the value's validity doesn't match the `sign` requirements,
-    // we report an overflow.
-    return (validity & sign) != 0;
-}
-
-// safety: assumes the buffer has enough place for specified integer size.
-// `sign` is a bitset, where bit `1` indicates that value accepts a signed int,
-// and bit `2` indicates that value accepts an unsigned int.
-static AsmError push_int_le(char *buf, uint64_t val, size_t size,
-                            uint8_t sign) {
-    if (!check_valid_int(val, size, sign)) {
-        return ErrImmediateOverflow;
-    }
-
-    // Write out the bytes of the integer to the buffer in little-endian order,
-    // starting with the lowest byte first.
-    for (size_t ii = 0; ii < size; ii += 1) {
-        buf[ii] = val & 0xff;
-        val >>= 8;
-    }
-
-    return ErrOk;
-}
-
-AsmError push_string(char *buf, char *input, size_t len) {
-    size_t ndata = 0;
-    for (size_t pos = 0; pos < len; pos += 1) {
-        char chr = input[pos];
-        if (chr == '\\') {
-            pos += 1;
-            chr = input[pos];
-            switch (chr) {
-                case '\\':
-                    chr = '\\';
-                    break;
-                case '"':
-                    chr = '"';
-                    break;
-                case 'r':
-                    chr = '\r';
-                    break;
-                case 'n':
-                    chr = '\n';
-                    break;
-                case '0':
-                    chr = '\0';
-                    break;
-                case 't':
-                    chr = '\t';
-                    break;
-                case 'x':
-                    if (pos + 2 >= len) {
-                        return ErrDanglingEscape;
-                    }
-                    char high = get_hex(input[pos + 1]);
-                    char low = get_hex(input[pos + 2]);
-                    if (high > 15 || low > 15) {
-                        return ErrStringBadHex;
-                    }
-                    chr = high << 4 | low;
-                    break;
-                default:
-                    return ErrBadStringEscape;
-            }
-        }
-        buf[ndata] = chr;
-        ndata += 1;
-    }
-    return ErrOk;
 }
 
 static AsmError assemble_instr(InstHt ht, char *input, size_t len, Token *tok,
@@ -319,89 +219,6 @@ static AsmError assemble_instr(InstHt ht, char *input, size_t len, Token *tok,
         }
     }
 
-    return ErrOk;
-}
-
-static AsmError push_data(char *input, size_t len, ByteVec *out, Token *tok,
-                          size_t word_size) {
-    while (1) {
-        *tok = token(input, len, tok->start + tok->len);
-        if (tok->kind == TokNumber) {
-            if (ensure_push(out, 1, word_size) != 0) {
-                return ErrOutOfMemory;
-            }
-            push_int_le(&out->buf[out->len], tok->num, word_size, 3);
-            out->len += word_size;
-        } else if (tok->kind == TokString) {
-            if (word_size != 1) {
-                return ErrStringDataNotByte;
-            }
-            if (ensure_push(out, 1, tok->num) != 0) {
-                return ErrOutOfMemory;
-            }
-
-            char *str = &input[tok->start + 1];
-            AsmError err = push_string(&out->buf[out->len], str, tok->len - 2);
-            if (err != ErrOk) {
-                return err;
-            }
-            out->len += tok->num;
-        } else {
-            return ErrUnexpectedToken;
-        }
-        *tok = token(input, len, tok->start + tok->len);
-        if (tok->kind == TokNewline || tok->kind == TokEOF) {
-            return ErrOk;
-        }
-        if (tok->kind == TokComma) {
-            continue;
-        }
-        return ErrInvalidToken;
-    }
-}
-
-AsmError assemble_directive(char *input, size_t len, ByteVec *out, Token *tok) {
-    if (tok->len < 2) {
-        return ErrInvalidDirective;
-    }
-    size_t pos = tok->start;
-    char byte0 = input[pos];
-    char byte1 = input[pos + 1];
-    if (byte0 == 'd') {
-        size_t word_size;
-        switch (byte1) {
-            case 'b':
-                word_size = 1;
-                break;
-            case 'w':
-                word_size = 2;
-                break;
-            case 'd':
-                word_size = 4;
-                break;
-            case 'q':
-                word_size = 8;
-                break;
-            default:
-                return ErrInvalidDirective;
-        }
-        return push_data(input, len, out, tok, word_size);
-    }
-    if (tok->len == 5 && strncmp("align", &input[pos], 5) == 0) {
-        *tok = token(input, len, tok->start + tok->len);
-        if (tok->kind != TokNumber) {
-            return ErrAlignNeedsNumber;
-        }
-        size_t mask = tok->num - 1;
-        if ((tok->num & mask) != 0) {
-            return ErrAlignNeedsPow2;
-        }
-        size_t aligned = (out->len + mask) & ~mask;
-        if (ensure_push(out, 1, aligned - out->len) != 0) {
-            return ErrOutOfMemory;
-        }
-        out->len = aligned;
-    }
     return ErrOk;
 }
 
