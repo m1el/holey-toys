@@ -8,7 +8,6 @@ AsmError push_string(char *buf, char *input, size_t len) {
             }
             pos += 1;
             chr = input[pos];
-            size_t offset = 1;
             switch (chr) {
                 case '\\':
                     chr = '\\';
@@ -38,12 +37,12 @@ AsmError push_string(char *buf, char *input, size_t len) {
                     if (high > 15 || low > 15) {
                         return ErrStringBadHex;
                     }
+                    pos += 2;
                     chr = high << 4 | low;
                     break;
                 default:
                     return ErrBadStringEscape;
             }
-            pos += offset;
         }
         buf[ndata] = chr;
         ndata += 1;
