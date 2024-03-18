@@ -207,7 +207,7 @@ static AsmError assemble_instr(InstHt ht, char *input, size_t len, Token *tok,
                     return ErrBadNumOverflow;
                 }
                 num_to_write = (uint64_t)tmp;
-            } else if (meta.sign == 2 && (int)num_to_write < 0) {
+            } else if (meta.sign == 2 && (int64_t)num_to_write < 0) {
                 return ErrBadNumOverflow;
             }
             AsmError err = push_int_le(&rv->buf[rv->len], num_to_write,
