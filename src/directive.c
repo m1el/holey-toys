@@ -33,7 +33,6 @@ AsmError push_string(char *buf, char *input, size_t len) {
                     }
                     char high = get_hex(input[pos + 1]);
                     char low = get_hex(input[pos + 2]);
-                    offset = 2;
                     if (high > 15 || low > 15) {
                         return ErrStringBadHex;
                     }
