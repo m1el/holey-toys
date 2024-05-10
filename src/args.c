@@ -54,10 +54,6 @@ const char *TYPE_STR[] = {
     "o",   "O",   "RRo", "RRO", "RRoH", "RROH", "RRDH",
 };
 
-const size_t TYPE_REL_POS[] = {
-    [RRr16] = 3, [RRr32] = 3, [RRr16u16] = 3, [RRr32u16] = 3,
-};
-
 const size_t NARGS = sizeof(ARGS) / sizeof(ARGS[0]);
 
 static ArgMeta arg_meta(char arg) {
