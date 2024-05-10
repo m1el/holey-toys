@@ -183,7 +183,7 @@ static AsmError assemble_instr(InstHt ht, char *input, size_t len, Token *tok,
                     }
                     holes->buf[holes->len] = (Hole){
                         .location = rv->len,
-                        .origin = inst_start,
+                        .origin = inst_start + TYPE_REL_POS[inst->type],
                         .str = &input[tok->start],
                         .len = tok->len,
                         .size = (size_t)meta.size,
